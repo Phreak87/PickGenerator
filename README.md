@@ -16,4 +16,6 @@ For the next Versions:
 [ ] Open configuration with Hashtags
 [ ] More Handles and Picks
  
+![alt text](https://github.com/Phreak87/PickGenerator/blob/master/svg.svg "Pick")
+
 have fun ;) 
