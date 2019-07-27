@@ -10,13 +10,14 @@ them.
 For SVG export copy the HTML-Source "SVG"-Source and add 
 xmlns="http://www.w3.org/2000/svg" to the top SVG-Element.
 
-For the next Versions:
-[ ] Make a "Save SVG" button
-[ ] Load and Save Configurations
-[ ] Open configuration with Hashtags
-[ ] More Handles and Picks
+For the next Versions:  
+
+[] Make a "Save SVG" button.  
+[] Load and Save Configurations.  
+[] Open configuration with Hashtags.  
+[] More Handles and Picks.  
  
-you can find a few design ideas here: 
+you can find a few design ideas here (Thanks for this great work!):   
 https://github.com/redditlockpicks/designs
 
 ![alt text](https://github.com/Phreak87/PickGenerator/blob/master/Interface.png "Interface")
