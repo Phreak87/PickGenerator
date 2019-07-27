@@ -20,6 +20,5 @@ you can find a few design ideas here:
 https://github.com/redditlockpicks/designs
 
 ![alt text](https://github.com/Phreak87/PickGenerator/blob/master/Interface.png "Interface")
-![alt text](https://github.com/Phreak87/PickGenerator/blob/master/svg.svg "Pick")
 
 have fun ;) 
