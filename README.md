@@ -5,6 +5,9 @@ Don't use this picks directly on a lock. it will not work!
 instead print with a (2D/3D)-printer and drill a saw blad down
 to the pick shape.  
 
+[Try the PickGenerator on JSFiddle](https://jsfiddle.net/Phreak87/3qc9gt46/4/)
+
+
 ## Configurations settings:  
 **Handle:**
 - Text with size, color and position
