@@ -6,7 +6,45 @@
 <BODY>
 <div id="A1"/>
 <script type="text/javascript">
-    
+
+function savePng(svgEl, name) {
+    if (typeof window.XMLSerializer != "undefined") {
+        var svgData = (new XMLSerializer()).serializeToString(svgEl);
+    } else if (typeof svgEl.xml != "undefined") {
+        var svgData = svgEl.xml;
+    }
+    var canvas = document.createElement("canvas");
+    var svgSize = svgEl.getBoundingClientRect();
+    canvas.width = svgSize.width;
+    canvas.height = svgSize.height;
+    var ctx = canvas.getContext("2d");
+    var img = document.createElement("img");
+    img.setAttribute("src", "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svgData))) );
+
+    img.onload = function() {
+        ctx.drawImage(img, 0, 0);
+        var imgsrc = canvas.toDataURL("image/png");
+        var a = document.createElement("a");
+        a.download = name;
+        a.href = imgsrc;
+        a.click();
+    };
+}
+
+function saveSvg(svgEl, name) {
+    svgEl.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+    var svgData = svgEl.outerHTML;
+    var preface = '<?xml version="1.0" standalone="no"?>\r\n';
+    var svgBlob = new Blob([preface, svgData], {type:"image/svg+xml;charset=utf-8"});
+    var svgUrl = URL.createObjectURL(svgBlob);
+    var downloadLink = document.createElement("a");
+    downloadLink.href = svgUrl;
+    downloadLink.download = name;
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    document.body.removeChild(downloadLink);
+}
+
 var Config = function() {
 	this.Preset = 'Pick_Halfdiamond_Small';
 	this.Type = 'Pick';
@@ -19,40 +57,66 @@ var Config = function() {
 	this.HandleRound  = 10;
 	this.HandleDrill  = true;
 	
-	this.ShankType     = 'Regular';
+	this.ShankType     = 'Double';
 	this.ShankTopWidth = 5;
 	this.ShankBotWidth = 10;
 	this.ShankLength   = 150;
 	this.ShankOrient   = 'Left';
 	this.TamperOrient  = 'Left';
+	
+	// Dental Shaft
 	this.DentalLen = 30;
 	this.DentalSet = 20;
 	
-	this.TipType = 'Rake';
-	this.TipMirr = false;
-	this.TipHalf = true;
-	this.TipWidth = 15;
-	this.TipHeight = 70;
-	this.TipGrad  = 0;
+	// Double Shaft
+	this.DoubleCut = 40;
+	this.DoubleLen = 20;
+	this.DoubleSet = 10;
+	
+	this.TipType = 'None';
 	this.TipRota = 0;
 	this.TipLeft = 0;
 	this.TipTop  = 0;
 	
+	// Diamond
+	this.TipDiaGrad  = 2;
+	this.TipDiaWidth = 10;
+	this.TipDiaHeight = 10;
+	this.TipDiaHalf = true;
+	
+	// Rake
+	this.TipRakeSize = 70;
 	this.TipRakeRota = 0;
-	this.TipRakeColor = 255;
-	this.TipRakeRound = 5;
+	this.TipRakeRound = 3;
+	this.TipRakeColor = 230;
 	this.TipRakeWidth = 10;
 	this.TipRakeHeigth = 10;
 	this.TipRakeLeft = 0;
 	this.TipRakeTop = 0;
+	
+	// Single Ball
+	this.TipSBallSize = 10;
+	this.TipSBallHalf = true;
+	
+	// Double Ball
+	this.TipDBall1Size = 10;
+	this.TipDBall2Size = 10;
+	this.TipDBallHalf = true;
+	this.TipDBallMirr = false;
 	
 	this.CurveStrength = 0;
 	this.Right_Position = -70;
 	this.Left_Position = 90;
 	
 	this.TextEnable = true;
+	this.TextColor = [0,128,255];
 	this.TextText = "Pickgen V1";
 	this.TextSize = 20;
+	
+	this.SaveSVG = function(){saveSvg(document.getElementsByTagName('svg')[0],'Test.svg')};
+	this.SavePNG = function(){savePng(document.getElementsByTagName('svg')[0],'Test.png')};
+	this.SaveSCAD = function(){alert('todo ... use Blender and import SVG')};
+	
   };
 var CFG = new Config();
 
@@ -72,14 +136,23 @@ for (var Set in res) {
 	}
 }
 
-var ConfigGUI = new dat.GUI(); ConfigGUI.__closeButton.hidden=true;
-var DentalGUI = new dat.GUI(); DentalGUI.hide();DentalGUI.__closeButton.hidden=true;
-var CurvedGUI = new dat.GUI(); CurvedGUI.hide();CurvedGUI.__closeButton.hidden=true;
-var TipRakeGUI = new dat.GUI(); TipRakeGUI.hide();TipRakeGUI.__closeButton.hidden=true;
+var ConfigGUI  = new dat.GUI(); ConfigGUI.__closeButton.hidden=true;
+
+var DoubleGUI  = new dat.GUI(); DoubleGUI.__closeButton.hidden=true;    DoubleGUI.hide()
+var DentalGUI  = new dat.GUI(); DentalGUI.__closeButton.hidden=true;    DentalGUI.hide()
+var CurvedGUI  = new dat.GUI(); CurvedGUI.__closeButton.hidden=true;    CurvedGUI.hide();
+
+var TipDiaGUI = new dat.GUI(); TipDiaGUI.__closeButton.hidden=true;   	TipDiaGUI.hide();
+var TipRakeGUI = new dat.GUI(); TipRakeGUI.__closeButton.hidden=true;   TipRakeGUI.hide();
+var TipSBallGUI = new dat.GUI(); TipSBallGUI.__closeButton.hidden=true; TipSBallGUI.hide();
+var TipDBallGUI = new dat.GUI(); TipDBallGUI.__closeButton.hidden=true; TipDBallGUI.hide();
 
 window.onload = function() {
-  ConfigGUI.add(CFG, 'Type', [ 'Pick','Rake','Snake','Extractor' ] 		).onChange(setValue);
-  ConfigGUI.add(CFG, 'Preset', [ 'Pick', 'Rake', 'Extractor' ] 	).onChange(setValue);
+  ConfigGUI.add(CFG, 'Type', [ 'Pick','Rake','Extractor' ] 	).onChange(setValue);
+  ConfigGUI.add(CFG, 'Preset', [ 'Pick', 'Rake', 'Extractor' ] 		).onChange(setValue);
+  ConfigGUI.add(CFG, "SaveSVG");
+  ConfigGUI.add(CFG, "SavePNG");
+  ConfigGUI.add(CFG, "SaveSCAD");
   
    var Handle = ConfigGUI.addFolder('Handle');
   Handle.add(CFG, 'HandleLength', 100, 500					).onChange(setValue);
@@ -89,11 +162,12 @@ window.onload = function() {
   
   var HandleText = ConfigGUI.addFolder('Handletext');
   HandleText.add(CFG, 'TextEnable'							).onChange(setValue);
+  HandleText.addColor(CFG, 'TextColor'						).onChange(setValue);
   HandleText.add(CFG, 'TextText'							).onChange(setValue);
   HandleText.add(CFG, 'TextSize'							).onChange(setValue);
   
   var Shank = ConfigGUI.addFolder('Shank');
-  Shank.add(CFG, 'ShankType', ['Regular','Dental','Curved']	).onChange(setValue);
+  Shank.add(CFG, 'ShankType', ['Regular','Dental','Curved','Double']	).onChange(setValue);
   Shank.add(CFG, 'TamperOrient', ['Left','Center','Right']	).onChange(setValue);
   Shank.add(CFG, 'ShankOrient', ['Left','Center','Right']	).onChange(setValue);
   Shank.add(CFG, 'ShankTopWidth', 0, 10						).onChange(setValue);
@@ -102,37 +176,58 @@ window.onload = function() {
   
   DentalGUI.add(CFG, 'DentalLen', 5, 100					).onChange(setValue);
   DentalGUI.add(CFG, 'DentalSet', 0, 50						).onChange(setValue);
+  
+  DoubleGUI.add(CFG, 'DoubleLen', 0, 50						).onChange(setValue);
+  DoubleGUI.add(CFG, 'DoubleSet', 0, 50						).onChange(setValue);
+  DoubleGUI.add(CFG, 'DoubleCut', 0, 50						).onChange(setValue);
     
   CurvedGUI.add(CFG, 'CurveStrength', -100, 100				).onChange(setValue);
   CurvedGUI.add(CFG, 'Right_Position', -200, 200			).onChange(setValue);
   CurvedGUI.add(CFG, 'Left_Position', -200, 200				).onChange(setValue);
   
   var Tip = ConfigGUI.addFolder('Tip');
-  Tip.add(CFG, 'TipType', ['None','Diamond','Ball','DoubleBall','Snake','Rake']).onChange(setValue);
-  Tip.add(CFG, 'TipMirr'									).onChange(setValue);
-  Tip.add(CFG, 'TipHalf'									).onChange(setValue);
-  Tip.add(CFG, 'TipWidth',  1, 100							).onChange(setValue);
-  Tip.add(CFG, 'TipHeight',  1, 100							).onChange(setValue);
-  Tip.add(CFG, 'TipGrad',  0, 50							).onChange(setValue);
+  Tip.add(CFG, 'TipType', ['None','Diamond','Ball','DoubleBall','Snake','Rake']
+															).onChange(setValue);
   Tip.add(CFG, 'TipRota',  0, 360							).onChange(setValue);
   Tip.add(CFG, 'TipLeft',  -50, 50							).onChange(setValue);
   Tip.add(CFG, 'TipTop',  -50, 50							).onChange(setValue);
   
+  TipDiaGUI.add(CFG, 'TipDiaGrad', 0, 100					).onChange(setValue);
+  TipDiaGUI.add(CFG, 'TipDiaHeight', 0, 100					).onChange(setValue);
+  TipDiaGUI.add(CFG, 'TipDiaWidth', 0, 100					).onChange(setValue);
+  TipDiaGUI.add(CFG, 'TipDiaHalf'							).onChange(setValue);
+  
+  TipRakeGUI.add(CFG, 'TipRakeSize', 0, 100					).onChange(setValue);
   TipRakeGUI.add(CFG, 'TipRakeHeigth', 0, 100				).onChange(setValue);
   TipRakeGUI.add(CFG, 'TipRakeWidth', 0, 100				).onChange(setValue);
   TipRakeGUI.add(CFG, 'TipRakeLeft', -50, 50				).onChange(setValue);
   TipRakeGUI.add(CFG, 'TipRakeTop', -50, 50					).onChange(setValue);
   TipRakeGUI.add(CFG, 'TipRakeRound', 0, 50					).onChange(setValue);
   TipRakeGUI.add(CFG, 'TipRakeColor', 0, 255				).onChange(setValue);
-  TipRakeGUI.add(CFG, 'TipRakeRota', -360, 360				).onChange(setValue);
+  TipRakeGUI.add(CFG, 'TipRakeRota', 0, 360					).onChange(setValue);
+  
+  TipSBallGUI.add(CFG, 'TipSBallSize', 0, 100				).onChange(setValue);
+  TipSBallGUI.add(CFG, 'TipSBallHalf'						).onChange(setValue);
+  
+  TipDBallGUI.add(CFG, 'TipDBall1Size', 0, 100				).onChange(setValue);
+  TipDBallGUI.add(CFG, 'TipDBall2Size', 0, 100				).onChange(setValue);
+  TipDBallGUI.add(CFG, 'TipDBallHalf'						).onChange(setValue);
+  TipDBallGUI.add(CFG, 'TipDBallMirr'						).onChange(setValue);
   
   setValue();
+  ConfigGUI.remember(CFG);
 };
 
 function setValue() {
+
+  DoubleGUI.hide();
   DentalGUI.hide();
   CurvedGUI.hide();
+  
+  TipDiaGUI.hide();
   TipRakeGUI.hide();
+  TipSBallGUI.hide();
+  TipDBallGUI.hide();
   
 // -----------------------------
 // Einstellungen korrigieren
@@ -140,18 +235,17 @@ function setValue() {
 var DentalSet = 0
 if (CFG.ShankType     == 'Dental'){DentalSet = CFG.DentalSet};
 
-var LenA = 0;
-if (CFG.TamperOrient  == 'Left')  {LenA = 0;}
-if (CFG.TamperOrient  == 'Center'){LenA = (CFG.ShankBotWidth - CFG.ShankTopWidth) / 2;}
-if (CFG.TamperOrient  == 'Right') {LenA = (CFG.ShankBotWidth - CFG.ShankTopWidth);}
-var LenB = 0;
-if (CFG.ShankOrient   == 'Left')  {LenB = (CFG.HandleWidth - CFG.ShankBotWidth) / 2 * -1;}
-if (CFG.ShankOrient   == 'Center'){LenB = 0}
-if (CFG.ShankOrient   == 'Right') {LenB = (CFG.HandleWidth - CFG.ShankBotWidth) / 2;}
+var LenA = 0; // entstehender Zwischenraum bei der Orientierung
+if (CFG.TamperOrient == 'Left')  {LenA = 0;}
+if (CFG.TamperOrient == 'Center'){LenA = (CFG.ShankBotWidth - CFG.ShankTopWidth) / 2;}
+if (CFG.TamperOrient == 'Right') {LenA = (CFG.ShankBotWidth - CFG.ShankTopWidth);}
 
-if (CFG.HandleRound >= CFG.HandleWidth / 2){CFG.HandleRound = CFG.HandleWidth /2;}
-if (CFG.TipGrad >= CFG.TipWidth / 2){CFG.TipGrad = CFG.TipWidth /2;}
-if (CFG.TipGrad >= CFG.TipHeight / 2){CFG.TipGrad = CFG.TipHeight /2;}
+var LenB = 0; 
+if (CFG.ShankOrient  == 'Left')  {LenB = (CFG.HandleWidth - CFG.ShankBotWidth) / 2 * -1;}
+if (CFG.ShankOrient  == 'Center'){LenB = 0}
+if (CFG.ShankOrient  == 'Right') {LenB = (CFG.HandleWidth - CFG.ShankBotWidth) / 2;}
+
+if (CFG.HandleRound  >= CFG.HandleWidth / 2){CFG.HandleRound = CFG.HandleWidth /2;}
 if (CFG.TipRakeRound >= CFG.TipRakeWidth / 2){CFG.TipRakeRound = CFG.TipRakeWidth /2;}
 if (CFG.TipRakeRound >= CFG.TipRakeHeight / 2){CFG.TipRakeRound = CFG.TipRakeHeight /2;}
 
@@ -159,66 +253,31 @@ var anc = document.getElementById("A1");anc.innerHTML = '';
 var two = new Two({ width: 1024, height: 768 }).appendTo(anc);
 
 // -----------------------------
-// --- Handle ----
+// ---- Handle Grundaufbau -----
 // -----------------------------
-var roundedRect = two.makeRoundedRectangle	(0, 0, CFG.HandleWidth, CFG.HandleLength, CFG.HandleRound);
-roundedRect.translation = new Two.Vector(CFG.left,CFG.top);
-roundedRect.fill = 'rgb(0, 200, 255)'; 
-roundedRect.noStroke();
+if (true){ // Just for Debug
+	var Handle = two.makeRoundedRectangle	(0, 0, CFG.HandleWidth, CFG.HandleLength, CFG.HandleRound);
+	Handle.translation = new Two.Vector(CFG.left,CFG.top);
+	Handle.fill = 'rgb(0, 200, 255)'; 
+	Handle.noStroke();
+}
 
 // -----------------------------
-// --- Handle Bohrungen ----
+// ----- Handle Bohrungen ------
 // -----------------------------
 if (CFG.HandleDrill == true){
-	Drill1 = two.makeCircle (0,0,CFG.HandleWidth / 4);
-	Drill1.noStroke()
-	Drill1.fill = 'rgb(200, 200, 200)';
-	Drill1.translation = new Two.Vector(100, CFG.top + (CFG.HandleLength / 2) - CFG.HandleWidth);
-	two.add(Drill1);
-	Drill2 = two.makeCircle (0,0,CFG.HandleWidth / 4);
-	Drill2.noStroke()
-	Drill2.fill = 'rgb(200, 200, 200)';
-	Drill2.translation = new Two.Vector(100, CFG.top - (CFG.HandleLength / 2) + CFG.HandleWidth);
-	two.add(Drill2);
+	DrillT = two.makeCircle (0,0,CFG.HandleWidth / 4);
+	DrillT.noStroke()
+	DrillT.fill = 'white';
+	DrillT.translation = new Two.Vector(100, CFG.top + (CFG.HandleLength / 2) - CFG.HandleWidth);
+	two.add(DrillT);
+	
+	DrillB = two.makeCircle (0,0,CFG.HandleWidth / 4);
+	DrillB.noStroke()
+	DrillB.fill = 'white';
+	DrillB.translation = new Two.Vector(100, CFG.top - (CFG.HandleLength / 2) + CFG.HandleWidth);
+	two.add(DrillB);
 }
-
-// -----------------------------
-// ----------- Schaft ----------
-// -----------------------------
-var Shaft
-if (CFG.ShankType == 'Regular'){
-Shaft = new Two.Path([
-    new Two.Anchor(LenA, 														0, 0, 0, 0, 0, 		Two.Commands.move),  // links  oben  - OK
-	new Two.Anchor(LenA + CFG.ShankTopWidth	, 									0, 0, 0, 0, 0, 		Two.Commands.line),  // rechts oben  - OK
-	new Two.Anchor(CFG.ShankBotWidth, CFG.ShankLength + CFG.HandleRound, 		0, 0, 0, 0, 		Two.Commands.line),  // links unten  - OK
-	new Two.Anchor(0, CFG.ShankLength + CFG.HandleRound, 						0, 0, 0, 0, 		Two.Commands.line),  // links unten  - OK
-  ], true, false, true);
-}
-if (CFG.ShankType == 'Dental'){
-DentalGUI.show();
-Shaft = new Two.Path([
-    new Two.Anchor(LenA + DentalSet, 											0, 0, 0, 0, 0, 		Two.Commands.move), // links  oben  - OK
-    new Two.Anchor(LenA + DentalSet + CFG.ShankTopWidth,						0, 0, 0, 0, 0, 		Two.Commands.line), // rechts  oben  - OK
-    new Two.Anchor(LenA + CFG.ShankTopWidth,CFG.DentalLen, 						0, 0, 0, 0, 		Two.Commands.line), // rechts  mitte  - OK
-	new Two.Anchor(CFG.ShankBotWidth, CFG.ShankLength + CFG.HandleRound, 		0, 0, 0, 0, 		Two.Commands.line), // rechts unten - OK
-	new Two.Anchor(0, CFG.ShankLength+ CFG.HandleRound, 						0, 0, 0, 0, 		Two.Commands.line), // links unten - OK
-    new Two.Anchor(LenA ,CFG.DentalLen, 										0, 0, 0, 0, 		Two.Commands.line), // rechts  mitte  - OK
-  ], true, true, true);
-}
-if (CFG.ShankType == 'Curved'){
-CurvedGUI.show();
-Shaft = new Two.Path([
-    new Two.Anchor(LenA, 														0, 0, 0, 0, 0, 		Two.Commands.move), // links  oben  - OK
-	new Two.Anchor(LenA + CFG.ShankTopWidth	, 									0, 0, 0, 0, 0, 		Two.Commands.line), // rechts oben  - OK
-	new Two.Anchor(CFG.ShankBotWidth, CFG.ShankLength+ CFG.HandleRound,CFG.CurveStrength, CFG.Right_Position,0,0,	Two.Commands.curve), // rechts unten - OK
-	new Two.Anchor(0, CFG.ShankLength+ CFG.HandleRound, 											0, 0, 0, 0, 		Two.Commands.line),  // links unten  - OK
-	new Two.Anchor(LenA, 0,CFG.CurveStrength, CFG.Left_Position,0,0,								Two.Commands.curve), // rechts unten - OK
-  ], false, false, true);
-}
-Shaft.noStroke()
-Shaft.fill = 'rgb(0, 200, 255)'; 
-Shaft.translation = new Two.Vector(CFG.left + LenB - (CFG.ShankBotWidth / 2), CFG.top - CFG.ShankLength - (CFG.HandleLength / 2));
-two.add(Shaft);
 
 // -----------------------------
 // ------------ Text -----------
@@ -227,96 +286,177 @@ if (CFG.TextEnable == true){
 	var HandleText = two.makeText	(CFG.TextText,100, CFG.top);
 	HandleText.rotation = 270 * Math.PI / 180;
 	HandleText.size = CFG.TextSize;
+	HandleText.fill = "rgb(" + CFG.TextColor + ")";
 }
+
+// -----------------------------
+// ----------- Schaft ----------
+// -----------------------------
+if (true){ // Just for Debug
+	var Shaft
+	if (CFG.ShankType == 'Regular'){
+	Shaft = new Two.Path([
+		new Two.Anchor(LenA, 														0, 0, 0, 0, 0, 		Two.Commands.move),  // links  oben  - OK
+		new Two.Anchor(LenA + CFG.ShankTopWidth	, 									0, 0, 0, 0, 0, 		Two.Commands.line),  // rechts oben  - OK
+		new Two.Anchor(CFG.ShankBotWidth, CFG.ShankLength + CFG.HandleRound, 		0, 0, 0, 0, 		Two.Commands.line),  // links unten  - OK
+		new Two.Anchor(0, CFG.ShankLength + CFG.HandleRound, 						0, 0, 0, 0, 		Two.Commands.line),  // links unten  - OK
+	  ], true, false, true);
+	}
+	if (CFG.ShankType == 'Dental'){
+	DentalGUI.show();
+	Shaft = new Two.Path([
+		new Two.Anchor(LenA + DentalSet, 											0, 0, 0, 0, 0, 		Two.Commands.move), // links  oben  - OK
+		new Two.Anchor(LenA + DentalSet + CFG.ShankTopWidth,						0, 0, 0, 0, 0, 		Two.Commands.line), // rechts  oben  - OK
+		new Two.Anchor(LenA + CFG.ShankTopWidth,CFG.DentalLen, 						0, 0, 0, 0, 		Two.Commands.line), // rechts  mitte  - OK
+		new Two.Anchor(CFG.ShankBotWidth, CFG.ShankLength + CFG.HandleRound, 		0, 0, 0, 0, 		Two.Commands.line), // rechts unten - OK
+		new Two.Anchor(0, CFG.ShankLength+ CFG.HandleRound, 						0, 0, 0, 0, 		Two.Commands.line), // links unten - OK
+		new Two.Anchor(LenA ,CFG.DentalLen, 										0, 0, 0, 0, 		Two.Commands.line), // rechts  mitte  - OK
+	  ], true, true, true);
+	}
+	if (CFG.ShankType == 'Double'){
+	DoubleGUI.show();
+	Shaft = new Two.Path([
+	
+		new Two.Anchor(LenA , 														0, 0, 0, 0, 0, 		Two.Commands.move), // Top-Line
+		new Two.Anchor(LenA + CFG.ShankTopWidth, 									0, 0, 0, 0, 0, 		Two.Commands.line), // Top-Line
+		new Two.Anchor(LenA + CFG.ShankTopWidth + CFG.DoubleSet, CFG.DoubleLen, 	0, 0, 0, 0, 		Two.Commands.line), // Haken schlagen
+		new Two.Anchor(LenA + CFG.ShankTopWidth, CFG.DoubleCut, 								0, 0, 0, 0, 		Two.Commands.line), // Haken schlagen
+		new Two.Anchor(CFG.ShankBotWidth, CFG.ShankLength + CFG.HandleRound, 		0, 0, 0, 0, 		Two.Commands.line), // rechts unten - OK
+		new Two.Anchor(0, CFG.ShankLength + CFG.HandleRound,						0, 0, 0, 0, 		Two.Commands.line), // links unten - OK
+		new Two.Anchor(LenA , CFG.DoubleCut, 													0, 0, 0, 0, 		Two.Commands.line), // Haken schlagen
+		new Two.Anchor(LenA + CFG.DoubleSet  , CFG.DoubleLen, 						0, 0, 0, 0, 		Two.Commands.line), // Haken schlagen
+		], true, true, true);
+	}
+	if (CFG.ShankType == 'Curved'){
+	CurvedGUI.show();
+	Shaft = new Two.Path([
+		new Two.Anchor(LenA, 														0, 0, 0, 0, 0, 		Two.Commands.move), // links  oben  - OK
+		new Two.Anchor(LenA + CFG.ShankTopWidth	, 									0, 0, 0, 0, 0, 		Two.Commands.line), // rechts oben  - OK
+		new Two.Anchor(CFG.ShankBotWidth, CFG.ShankLength+ CFG.HandleRound,CFG.CurveStrength, CFG.Right_Position,0,0,	Two.Commands.curve), // rechts unten - OK
+		new Two.Anchor(0, CFG.ShankLength+ CFG.HandleRound, 											0, 0, 0, 0, 		Two.Commands.line),  // links unten  - OK
+		new Two.Anchor(LenA, 0,CFG.CurveStrength, CFG.Left_Position,0,0,								Two.Commands.curve), // rechts unten - OK
+	  ], false, false, true);
+	}
+	
+	Shaft.noStroke();Shaft.fill = 'rgb(0, 200, 255)'; 
+	Shaft.translation = new Two.Vector(CFG.left + LenB - (CFG.ShankBotWidth / 2), CFG.top - CFG.ShankLength - (CFG.HandleLength / 2));
+	two.add(Shaft);
+}
+
 
 // -----------------------------
 // ----------- Tips ----------
 // -----------------------------
-var Mirror = 1; 	if (CFG.TipMirr ==true){Mirror = -1}
-var MirrorRot = 0;  if (CFG.TipMirr ==true){MirrorRot = 180}
+var LenB2 = 0; 
+if (CFG.ShankOrient  == 'Left')  {LenB2 = 0}
+if (CFG.ShankOrient  == 'Center'){LenB2 = (CFG.HandleWidth - CFG.ShankBotWidth) / 2}
+if (CFG.ShankOrient  == 'Right') {LenB2 = CFG.HandleWidth - CFG.ShankBotWidth;}
 
-if (CFG.TipType == 'Rake'){
-TipRakeGUI.show();
-var group1 = two.makeGroup();
+var Mirror = 1; 	if (CFG.TipDBallMirr ==true){Mirror = -1} 		// Versatz * 1 oder Versatz * -1 für Mirroring
+var MirrorRot = 0;  if (CFG.TipDBallMirr ==true){MirrorRot = 180} 	// Wenn Mirror 180 Grad Drehung Automatisch anwenden
 
+var TipLeft = CFG.left 				// Standard Linksverschiebung auf Mitte von Handle
+			- (CFG.HandleWidth / 2) // Hälfte der Handlebreite abziehen für Nullpunkt.
+			+ CFG.TipLeft 			// Manuelle anpassungen der Tipverschiebung
+			+ LenA					// Zentrierung an Shaft
+			+ LenB2 				// Zentrierung an Handle
+			+ DentalSet  			// Bei Dental Set hinzufügen
+			+ CFG.ShankTopWidth; 	// Breite Shanktop hinzufügen
+			
+var TipTop 	= CFG.top  				 // Standard Höhenverschiebung auf Mitte von Handle
+			- (CFG.HandleLength / 2) // Hälfte der Handlehöhe abziehen für Nullpunkt.
+			- CFG.TipTop			 // Manuelle anpassungen der Tipverschiebung
+			- CFG.ShankLength; 		 // Shanklänge abziehen
+
+
+var group = two.makeGroup();
 var white = 'rgb(' + CFG.TipRakeColor + ',' + CFG.TipRakeColor + ',' + CFG.TipRakeColor + ')';
 
-var Rake1  = two.makeRectangle(0, 0, CFG.TipWidth, CFG.TipHeight);
-Rake1.translation = new Two.Vector(CFG.TipWidth / 2,0)
-Rake1.fill = 'rgb(0, 200, 255)';Rake1.noStroke();
-group1.add (Rake1);
+if (CFG.TipType == 'Rake'){
+	TipRakeGUI.show();
 
-// two.makeRoundedRectangle (x, y, width, height, radius);
-var XPos = CFG.TipWidth + CFG.TipRakeLeft;
-var YPos = (CFG.TipHeight/2) + (CFG.TipWidth/2) + CFG.TipRakeTop;
-var TRW = CFG.TipRakeWidth;
-var TRH = CFG.TipRakeHeigth;
-var TRR = CFG.TipRakeRound;
-var TRG = CFG.TipRakeRota * Math.PI / 180;
-var Circ1  = two.makeRoundedRectangle (XPos,YPos - (1*CFG.TipHeight/5),TRW, TRH, TRR);Circ1.fill = white;Circ1.noStroke();Circ1.rotation = TRG;group1.add (Circ1);
-var Circ2  = two.makeRoundedRectangle (XPos,YPos - (2*CFG.TipHeight/5),TRW, TRH, TRR);Circ2.fill = white;Circ2.noStroke();Circ2.rotation = TRG;group1.add (Circ2);
-var Circ3  = two.makeRoundedRectangle (XPos,YPos - (3*CFG.TipHeight/5),TRW, TRH, TRR);Circ3.fill = white;Circ3.noStroke();Circ3.rotation = TRG;group1.add (Circ3);
-var Circ4  = two.makeRoundedRectangle (XPos,YPos - (4*CFG.TipHeight/5),TRW, TRH, TRR);Circ4.fill = white;Circ4.noStroke();Circ4.rotation = TRG;group1.add (Circ4);
-var Circ5  = two.makeRoundedRectangle (XPos,YPos - (5*CFG.TipHeight/5),TRW, TRH, TRR);Circ5.fill = white;Circ5.noStroke();Circ5.rotation = TRG;group1.add (Circ5);
-group1.rotation = CFG.TipRota * Math.PI / 180;
-group1.translation = new Two.Vector(100 + DentalSet + CFG.TipLeft, CFG.top - CFG.ShankLength - (CFG.HandleLength / 2) + CFG.TipTop);
-
-two.add(group1);
+	var Rake  = two.makeRectangle(0, 0, CFG.TipRakeSize / 5, CFG.TipRakeSize);
+	Rake.fill = 'rgb(0, 200, 255)';Rake.noStroke()
+	Rake.translation = new Two.Vector(	TipLeft + (CFG.TipRakeSize / 10), 
+										TipTop  +  CFG.TipRakeSize / 2);
+	two.add(Rake);
+	var TRW = CFG.TipRakeWidth;
+	var TRH = CFG.TipRakeHeigth;
+	var TRR = CFG.TipRakeRound;
+	var TRG = CFG.TipRakeRota * Math.PI / 180;
+	
+	var Circ1  = two.makeRoundedRectangle (0,(1*CFG.TipRakeSize/5),TRW, TRH, TRR);Circ1.fill = white;Circ1.noStroke();Circ1.rotation = TRG;group.add (Circ1);
+	var Circ2  = two.makeRoundedRectangle (0,(2*CFG.TipRakeSize/5),TRW, TRH, TRR);Circ2.fill = white;Circ2.noStroke();Circ2.rotation = TRG;group.add (Circ2);
+	var Circ3  = two.makeRoundedRectangle (0,(3*CFG.TipRakeSize/5),TRW, TRH, TRR);Circ3.fill = white;Circ3.noStroke();Circ3.rotation = TRG;group.add (Circ3);
+	var Circ4  = two.makeRoundedRectangle (0,(4*CFG.TipRakeSize/5),TRW, TRH, TRR);Circ4.fill = white;Circ4.noStroke();Circ4.rotation = TRG;group.add (Circ4);
+	var Circ5  = two.makeRoundedRectangle (0,(5*CFG.TipRakeSize/5),TRW, TRH, TRR);Circ5.fill = white;Circ5.noStroke();Circ5.rotation = TRG;group.add (Circ5);
+	group.rotation = (CFG.TipRota + MirrorRot) * Math.PI / 180; group.center();
+	group.translation = new Two.Vector(	TipLeft + CFG.TipRakeLeft + (CFG.TipRakeSize / 10), 
+										TipTop + CFG.TipRakeTop +  CFG.TipRakeSize / 2);
+	two.add(group);
 }
 
 if (CFG.TipType == 'Diamond'){
-	var Tip2 = two.makeRoundedRectangle(0, 0, CFG.TipWidth, CFG.TipHeight, CFG.TipGrad);
-	Tip2.fill = 'rgb(0, 200, 255)';
-	Tip2.rotation = 45 * Math.PI / 180;
-	Tip2.noStroke();
-	var group = two.makeGroup();
-	group.add (Tip2);
-	group.center();
-	if (CFG.TipHalf == true){
-		Cut1 = two.makeRectangle (0,0, CFG.TipWidth, CFG.TipHeight * 2 );
-		Cut1.translation = new Two.Vector((CFG.TipWidth/2));
+	TipDiaGUI.show();
+	var Tip2 = two.makeRoundedRectangle(0, 0, CFG.TipDiaWidth, CFG.TipDiaHeight, CFG.TipDiaGrad);
+	Tip2.fill = 'rgb(0, 200, 255)'; Tip2.rotation = 45 * Math.PI / 180; Tip2.noStroke();
+	
+	group.add (Tip2);group.center();
+	
+	if (CFG.TipDiaHalf == true){
+		Cut1 = two.makeRectangle (0,0, CFG.TipDiaWidth, CFG.TipDiaHeight * 2 );
+		Cut1.translation = new Two.Vector((CFG.TipDiaWidth/2)*Mirror);
 		group.mask = Cut1;
 	}
-	group.rotation = CFG.TipRota * Math.PI / 180;
-	group.translation = new Two.Vector(100 + DentalSet + CFG.TipLeft, CFG.top - CFG.ShankLength - (CFG.HandleLength / 2) + CFG.TipTop);
+	
+	group.center();
+	group.rotation = (CFG.TipRota + MirrorRot) * Math.PI / 180;
+	group.translation = new Two.Vector(TipLeft, TipTop + (CFG.TipDiaHeight / 2));
 	two.add(group);
 }
 
 if (CFG.TipType == 'Ball'){
-	Tip2 = two.makeCircle (0,0,CFG.TipWidth);
-	Tip2.fill = 'rgb(0, 200, 255)';
-	Tip2.noStroke();
-	var group = two.makeGroup();
+	TipSBallGUI.show();
+	Tip2 = two.makeCircle (0,0,CFG.TipSBallSize);
+	Tip2.fill = 'rgb(0, 200, 255)'; Tip2.noStroke();
+	
 	group.add (Tip2);group.center();
-	if (CFG.TipHalf == true){
-		Cut1 = two.makeRectangle (0,0, CFG.TipWidth , CFG.TipHeight * 2);
-		Cut1.translation = new Two.Vector((CFG.TipWidth/2)*Mirror);
+	
+	if (CFG.TipSBallHalf == true){
+		Cut1 = two.makeRectangle (0,0, CFG.TipSBallSize , CFG.TipSBallSize * 2);
+		Cut1.translation = new Two.Vector((CFG.TipSBallSize/2)*Mirror);
 		group.mask = Cut1;
 	}
-	group.translation = new Two.Vector(100 + DentalSet + CFG.TipLeft, CFG.top - CFG.ShankLength - (CFG.HandleLength / 2) + CFG.TipTop);
+	
+	group.center();
+	group.rotation = (CFG.TipRota + MirrorRot) * Math.PI / 180;
+	group.translation = new Two.Vector(TipLeft, TipTop + CFG.TipSBallSize);
 	two.add(group);
 }
 
 if (CFG.TipType == 'DoubleBall'){
-Tip2 = two.makeCircle (0,0,CFG.TipWidth);
-Tip3 = two.makeCircle (0,0,CFG.TipWidth * 0.8);
-Tip3.translation = new Two.Vector(0,CFG.TipWidth * 2);
-var group = two.makeGroup();
-group.add (Tip2);group.add (Tip3);
+	TipDBallGUI.show();
+	Tip2 = two.makeCircle (0,0,CFG.TipDBall1Size);
+	Tip3 = two.makeCircle (0,0,CFG.TipDBall2Size);
+	Tip3.translation = new Two.Vector(0,(CFG.TipDBall1Size * 2)*0.8);
+	
+	group.add (Tip2);group.add (Tip3);group.center();
 
-if (CFG.TipHalf == true){
-	Cut1 = two.makeRectangle (0,0, CFG.TipWidth , CFG.TipWidth * 5);
-	Cut1.translation = new Two.Vector((CFG.TipWidth/2)*Mirror);
-	group.mask = Cut1;
+	if (CFG.TipDBallHalf == true){
+		Cut1 = two.makeRectangle (0,0, CFG.TipDBall1Size , ((CFG.TipDBall1Size + CFG.TipDBall2Size) * 3));
+		Cut1.translation = new Two.Vector((CFG.TipDBall1Size/2)*Mirror);
+		group.mask = Cut1;
+	}
+
+	group.center();
+	group.noStroke();group.fill = 'rgb(0, 200, 255)';
+	group.rotation = (CFG.TipRota + MirrorRot) * Math.PI / 180;
+	group.translation = new Two.Vector(TipLeft, TipTop + (CFG.TipDBall1Size + CFG.TipDBall2Size) /2 );
+	two.add(group);
+
 }
 
-group.center();
-group.noStroke();group.fill = 'rgb(0, 200, 255)';
-group.translation = new Two.Vector(100 + DentalSet + CFG.TipLeft, CFG.top - CFG.ShankLength - (CFG.HandleLength / 2) + CFG.TipTop);
-group.rotation = (CFG.TipRota + MirrorRot) * Math.PI / 180;
-two.add(group);
-
-}
+//var TipDebug = two.makeCircle(TipLeft, TipTop,1);
 two.update();
 }
 
